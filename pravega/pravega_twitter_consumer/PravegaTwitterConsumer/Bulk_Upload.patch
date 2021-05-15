@@ -1,0 +1,189 @@
+Index: PravegaTwitterConsumer/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/PravegaTwitterConsumer/build.gradle b/PravegaTwitterConsumer/build.gradle
+--- a/PravegaTwitterConsumer/build.gradle	(revision f1fc793567b42118b997569cb96038e55f79e709)
++++ b/PravegaTwitterConsumer/build.gradle	(date 1620756261082)
+@@ -6,7 +6,7 @@
+ 
+ group = 'com.unbound.pravega'
+ version = '0.0.1-SNAPSHOT'
+-sourceCompatibility = '11'
++//sourceCompatibility = '11'
+ 
+ ext {
+ 	junitVersion = '4.11'
+Index: PravegaTwitterProducer/src/main/java/com/unbound/pravega/service/TwitterKeywordBasedCrawler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/PravegaTwitterProducer/src/main/java/com/unbound/pravega/service/TwitterKeywordBasedCrawler.java b/PravegaTwitterProducer/src/main/java/com/unbound/pravega/service/TwitterKeywordBasedCrawler.java
+--- a/PravegaTwitterProducer/src/main/java/com/unbound/pravega/service/TwitterKeywordBasedCrawler.java	(revision 79d72d359cc9c5f51dbffbaa038ece70e12313a0)
++++ b/PravegaTwitterProducer/src/main/java/com/unbound/pravega/service/TwitterKeywordBasedCrawler.java	(date 1620750392356)
+@@ -41,6 +41,7 @@
+             try {
+                 while (!queue.isEmpty()) {
+                     String message = queue.take();
++                    //System.out.println(message);
+                     pravegaWriter.writeStream("helloRoutingKey", message);//TODO: Chaange routing key
+                 }
+             } catch (Exception e) {
+Index: PravegaTwitterProducer/src/main/resources/application.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/PravegaTwitterProducer/src/main/resources/application.properties b/PravegaTwitterProducer/src/main/resources/application.properties
+--- a/PravegaTwitterProducer/src/main/resources/application.properties	(revision 79d72d359cc9c5f51dbffbaa038ece70e12313a0)
++++ b/PravegaTwitterProducer/src/main/resources/application.properties	(date 1620750348405)
+@@ -2,7 +2,7 @@
+ io.reflectoring.pravega.bootstrap-servers=tcp://127.0.0.1:9090
+ io.reflectoring.pravega.scope=examples
+ io.reflectoring.pravega.streamName=helloStream
+-twitter.consumer.key=
+-twitter.consumer.secret=
+-twitter.token=
+-twitter.token.secret=
++twitter.consumer.key=U0bibNLsEfYlrMt6ZSvqo6yNd
++twitter.consumer.secret=mQinuftufjJcfmRDa19RdDhZT6gKAlr8zLMp4oGhGr4WYqftMm
++twitter.token=879379310-fkH1VSKgSoXW2V6j6EjzenIzTiHaxhtgbmNWMDJr
++twitter.token.secret=CU0XsI2UjgCFYd6t3AyQwq7VkjaLw5mPlPCDkI6f5IaXz
+\ No newline at end of file
+Index: PravegaTwitterProducer/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/PravegaTwitterProducer/build.gradle b/PravegaTwitterProducer/build.gradle
+--- a/PravegaTwitterProducer/build.gradle	(revision 79d72d359cc9c5f51dbffbaa038ece70e12313a0)
++++ b/PravegaTwitterProducer/build.gradle	(date 1620746964543)
+@@ -6,7 +6,7 @@
+ 
+ group = 'com.unbound.pravega'
+ version = '0.0.1-SNAPSHOT'
+-sourceCompatibility = '11'
++//sourceCompatibility = '11'
+ 
+ ext {
+ 	junitVersion = '4.11'
+Index: PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/PravegaReaderService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/PravegaReaderService.java b/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/PravegaReaderService.java
+--- a/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/PravegaReaderService.java	(revision f1fc793567b42118b997569cb96038e55f79e709)
++++ b/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/PravegaReaderService.java	(date 1620789020368)
+@@ -10,6 +10,9 @@
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Service;
+ 
++import java.util.ArrayList;
++import java.util.List;
++
+ @Service
+ public class PravegaReaderService {
+     @Autowired
+@@ -17,22 +20,38 @@
+ 
+     private static final int READER_TIMEOUT_MS = 2000;
+ 
++    private static int bulkCount = 0;
++
+     @Autowired
+     private ElasticSearchService elasticSearchService;
+ 
++
++    private static List<String> list;
++
+     public void readStream() {
+         final String readerGroup = ConsumerConfig.PRAVEGA_READER_GROUP;
++        list = new ArrayList<>();
+         EventStreamReader<String> reader = clientFactory.createReader("reader",
+                 readerGroup,
+                 new JavaSerializer<String>(),
+                 ReaderConfig.builder().build());
+-            EventRead<String> event = null;
+-            do {
++        EventRead<String> event = null;
++        do {
+                 try {
+                     event = reader.readNextEvent(READER_TIMEOUT_MS);
+                     if (event != null && event.getEvent() != null) {
+-                        // System.out.format("Read event '%s'%n", event.getEvent());
+-                        elasticSearchService.saveData(event.getEvent());
++
++                        if (bulkCount < 10) {
++                            list.add(event.getEvent());
++                            bulkCount++;
++                        } else {
++                            elasticSearchService.saveBulk(list);
++                            list.clear();
++                            list.add(event.getEvent());
++                            bulkCount = 1;
++                        }
++                        //System.out.format("Read event '%s'%n", event.getEvent());
++                        //elasticSearchService.saveData(event.getEvent());
+                     }
+                 } catch (ReinitializationRequiredException e) {
+                     //There are certain circumstances where the reader needs to be reinitialized
+Index: PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/ElasticSearchService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/ElasticSearchService.java b/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/ElasticSearchService.java
+--- a/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/ElasticSearchService.java	(revision f1fc793567b42118b997569cb96038e55f79e709)
++++ b/PravegaTwitterConsumer/src/main/java/com/unbound/pravega/service/ElasticSearchService.java	(date 1620789020377)
+@@ -11,6 +11,7 @@
+ 
+ import java.text.SimpleDateFormat;
+ import java.util.Date;
++import java.util.List;
+ 
+ @Service
+ public class ElasticSearchService {
+@@ -38,9 +39,39 @@
+ 
+         ResponseEntity<String> response
+                 = new RestTemplate(elasticSearchConfig.getHttpRequestFactory()).exchange(
+-                ES_URL+"/"+index+"/_doc", HttpMethod.POST, request, String.class);
++                ES_URL + "/" + index + "/_doc", HttpMethod.POST, request, String.class);
+         System.out.println("Elastic Search: " + response.getBody());
+     }
++
++    public void saveBulk(List<String> list) {
++        StringBuilder builder = new StringBuilder();
++        for (String doc : list) {
++            doc = addTimeStamp(doc);
++            builder.append(doc);
++            builder.append(System.getProperty("line.separator"));
++        }
++
++
++        String json = builder.toString();
++
++        System.out.println(json);
++
++        //System.out.println(json);
++        //json = addTimeStamp(json);
++        HttpHeaders headers = new HttpHeaders();
++        headers.setContentType(MediaType.APPLICATION_JSON);
++//        headers.add("Authorization", "Basic YWRtaW46YWRtaW4=");
++        headers.add("Accept", "*/*");
++        headers.add("Cache-Control", "no-cache");
++
++        HttpEntity<String> request = new HttpEntity<String>(json, headers);
++
++        ResponseEntity<String> response
++                = new RestTemplate(elasticSearchConfig.getHttpRequestFactory()).exchange(
++                ES_URL + "/" + index + "/_doc/_bulk", HttpMethod.POST, request, String.class);
++
++        System.out.println("Elastic Search: " + response.getBody());
++    }
+ 
+     @SuppressWarnings("deprecation")
+     private String addTimeStamp(String json) throws JSONException {
